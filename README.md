@@ -115,7 +115,7 @@ MCP 客户端 (Agent / Inspector / SDK)
 > ```json
 > "species": {
 >   "anyOf": [
->     { "enum": ["dog","cat","rabbit","bird","hamster","reptile","other"], "type": "string" },
+>     { "enum": ["犬","猫","兔","鸟","仓鼠","爬宠","其他"], "type": "string" },
 >     { "type": "null" }
 >   ],
 >   "default": null, "description": "物种", "title": "Species"
@@ -408,7 +408,7 @@ async def main() -> None:
         tools = await client.list_tools()
         print([t.name for t in tools.tools])          # ['list_pets']
 
-        result = await client.call_tool("list_pets", {"species": "dog", "page": 1})
+        result = await client.call_tool("list_pets", {"species": "犬", "page": 1})
         print(result.structured_content)              # 与 Go 的 data 一一对应
 
         bad = await client.call_tool("list_pets", {"noSuchParam": 1})
@@ -454,7 +454,7 @@ curl -s -X POST http://127.0.0.1:8000/mcp \
     "jsonrpc": "2.0", "id": 1, "method": "tools/call",
     "params": {
       "name": "list_pets",
-      "arguments": {"species": "dog", "page": 1},
+      "arguments": {"species": "犬", "page": 1},
       "_meta": {
         "io.modelcontextprotocol/protocolVersion": "2026-07-28",
         "io.modelcontextprotocol/clientCapabilities": {},
@@ -486,34 +486,40 @@ curl -s -X POST http://127.0.0.1:8000/mcp \
 
 ---
 
-## 6. ⚠️ 已知未核实项
+## 6. 枚举真值（已核实）
 
-**这是本仓库最重要的一个注意点。**
+**本仓库最重要的历史遗留项已于 2026-09-16 核实关闭。**
 
-`src/pet_hospital_mcp/tools/list_pets.py` 里有**四组枚举值**是**暂定占位值**，
-因为**本仓库不包含 Go 服务的源码**，无法从证据推出真实取值：
+早期版本里 `src/pet_hospital_mcp/tools/list_pets.py` 的四组枚举值是**暂定占位值**
+（英文假值 `dog` / `waiting` 等），因为当时手上没有 Go 服务的源码。现依据两条互相
+印证的证据链全部替换为真实取值：
 
-| 常量 | 暂定值 | 用在哪 |
+**证据一：Go 服务源码**（pet-hospital-mcp-teaching-main）
+
+| 枚举 | 真实取值 | 源码位置 |
 | --- | --- | --- |
-| `SPECIES_VALUES` | `dog` / `cat` / `rabbit` / `bird` / `hamster` / `reptile` / `other` | `species` |
-| `STATUS_VALUES` | `waiting` / `in_treatment` / `completed` / `discharged` / `cancelled` | `status` |
-| `SORT_BY_VALUES` | `id` / `name` / `species` / `status` / `createdAt` / `updatedAt` / `totalCost` | `sortBy` |
-| `ORDER_VALUES` | `asc` / `desc` | `order` |
+| `SPECIES_VALUES` | `犬` / `猫` / `兔` / `鸟` / `仓鼠` / `爬宠` / `其他` | `internal/model/model.go` |
+| `STATUS_VALUES` | `待就诊` / `就诊中` / `住院中` / `已康复` / `慢性病随访` | `internal/model/model.go` |
+| `SORT_BY_VALUES` | `id` / `name` / `ownerName` / `species` / `doctor` / `disease` / `status` / `totalCost` / `visitCount` / `createdAt` / `updatedAt` | `internal/api/api.go`（handleMeta） |
+| `ORDER_VALUES` | `asc` / `desc` | `internal/store/store.go`（sortPets） |
 
-**怎么对齐**（改完这四组常量与对应的四个 `Literal` 别名即可，两处必须同步）：
+**证据二：运行实例**（pethospital.exe + 真实 pet.db）：
+`GET /api/v1/meta` 返回的 `species` / `status` / `sortFields` 与源码一致；
+`species=犬`（命中 446 条）、`status=住院中`、`sortBy=ownerName&order=asc` 均实测生效。
 
-```bash
-grep -rn -A20 'api/v1/pets' <go-repo>     # 找到 handler
-grep -rn 'case "' <go-repo>/internal/...  # 找枚举常量 / switch 分支
-```
+**顺带核实的后端行为**（都写进了工具描述）：
 
-取值不对时**不会静默出错**：工具会以 `VALIDATION_ERROR` 明确报出
-`allowed_fields` 与允许值列表，照着改就行。`test_tool_registration.py` 里有一条测试
-专门锁住「`Literal` 别名与常量元组保持一致」，所以只改一处会被测出来。
+* `sortBy` 为空或未知 → 后端按 `id` 排序；`order` 为空 → 后端默认 `desc`，
+  非 `desc`（忽略大小写）一律按 `asc` 处理。工具侧把 `order` 收紧为小写
+  `asc`/`desc` 白名单，属客户端自律，不改变后端行为。
+* `pageSize` 超过 500 会被后端钳回 500（与工具的 `MAX_PAGE_SIZE=500` 对齐）；
+  后端默认 `pageSize=20`。
+* 查询参数名 14 个、成功响应 `data` 结构（`items`/`total`/`page`/`pageSize`/
+  `totalPages`/`totalCost`）、`records`/`charges` 可能为 `null`——全部与实现一致。
 
-其余**已按证据确定**的部分：端点路径 `/api/v1/pets`、查询参数名（14 个）、
-成功响应的 `data` 结构（`items` / `total` / `page` / `pageSize` / `totalPages` / `totalCost`）、
-`records` 与 `charges` 可能为 `null`。
+**改枚举时的同步点**（未来的自己请记好）：四个常量与四个 `Literal` 别名**两处必须
+一致**，`tests/test_tool_registration.py` 有测试锁定，只改一处会红；README / smoke_test /
+tests 里的示例值也要跟着改——本次核实就发现英文占位值散落在 6 个文件里。
 
 ---
 

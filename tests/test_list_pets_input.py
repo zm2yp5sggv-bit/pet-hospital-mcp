@@ -54,10 +54,10 @@ class TestUnknownFields:
             "name": "旺财",
             "ownerName": "张三",
             "ownerPhone": "13800000000",
-            "species": "dog",
+            "species": "犬",
             "doctor": "李医生",
             "disease": "感冒",
-            "status": "waiting",
+            "status": "待就诊",
             "min": 0,
             "max": 100,
             "sortBy": "name",
@@ -128,7 +128,7 @@ class TestWrongTypes:
     def test_min_rejects_non_number(self, value: object) -> None:
         assert any(item["field"] == "min" for item in errors_of({"min": value}))
 
-    @pytest.mark.parametrize("value", [1, True, ["dog"], {"species": "dog"}])
+    @pytest.mark.parametrize("value", [1, True, ["旺财"], {"species": "犬"}])
     def test_text_fields_reject_non_string(self, value: object) -> None:
         assert any(item["field"] == "name" for item in errors_of({"name": value}))
 
@@ -149,8 +149,10 @@ class TestEnums:
         assert errors_of({field: "definitely-not-allowed"})
 
     def test_case_sensitive(self) -> None:
+        # order 的枚举区分大小写；中文枚举没有大小写可言，
+        # 用「不在枚举内」的取值验证同样会被拒。
         assert errors_of({"order": "ASC"})
-        assert errors_of({"species": "Dog"})
+        assert errors_of({"species": "小狗"})
 
 
 class TestQueryConstruction:

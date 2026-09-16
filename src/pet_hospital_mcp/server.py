@@ -45,7 +45,9 @@ HEALTH_PATH: Final = "/health"
 SERVER_INSTRUCTIONS: Final = """\
 宠物医院业务数据服务。当前只提供 list_pets 一个工具，用于按条件查询宠物病例列表。
 
-调用要点：全部参数可选；物种/状态/排序字段/排序方向使用后端约定的英文取值；
+调用要点：全部参数可选；物种/状态使用后端约定的中文取值（species 如 犬/猫/其他，
+status 如 待就诊/住院中/已康复），排序字段与方向使用英文（sortBy 如 totalCost，
+order 为 asc/desc）；
 费用区间用 min/max 且 min 不得大于 max；分页用 page（从 1 开始）与 pageSize（1..500）。
 
 失败时返回 isError=true 与统一错误形状 {"error": {"code", "message", "details"}}，

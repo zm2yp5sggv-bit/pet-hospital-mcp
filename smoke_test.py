@@ -22,6 +22,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import quote
 
 import httpx
 import uvicorn
@@ -45,12 +46,12 @@ FAKE_DATA = {
         {
             "id": 1,
             "name": "旺财",
-            "species": "dog",
+            "species": "犬",
             "ownerName": "张三",
             "ownerPhone": "13800000000",
             "doctor": "李医生",
             "disease": "犬瘟热",
-            "status": "in_treatment",
+            "status": "就诊中",
             "totalCost": 2100,
             "records": None,          # ← Go 侧可能是 null
             "charges": [{"item": "输液", "amount": 800}],
@@ -58,12 +59,12 @@ FAKE_DATA = {
         {
             "id": 2,
             "name": "咪咪",
-            "species": "cat",
+            "species": "猫",
             "ownerName": "李四",
             "ownerPhone": "13900000001",
             "doctor": "王医生",
             "disease": "肠胃炎",
-            "status": "completed",
+            "status": "已康复",
             "totalCost": 1320.5,
             "records": [],
             "charges": None,          # ← 这个反过来，charges 是 null
@@ -299,14 +300,14 @@ async def main() -> int:
 
             check(
                 branch("species", "enum").get("enum") == [
-                    "dog", "cat", "rabbit", "bird", "hamster", "reptile", "other",
+                    "犬", "猫", "兔", "鸟", "仓鼠", "爬宠", "其他",
                 ],
                 "species 的 enum 在 anyOf 内（真实约束）",
                 str(branch("species", "enum").get("enum")),
             )
             check(
                 branch("status", "enum").get("enum")
-                == ["waiting", "in_treatment", "completed", "discharged", "cancelled"],
+                == ["待就诊", "就诊中", "住院中", "已康复", "慢性病随访"],
                 "status 的 enum 在 anyOf 内",
                 str(branch("status", "enum").get("enum")),
             )
@@ -345,7 +346,7 @@ async def main() -> int:
 
         # ------------------------------------------------- 6. 正常调用
         print("\n[6] tools/call list_pets 正常路径")
-        r, body = await rpc("tools/call", {"name": "list_pets", "arguments": {"species": "dog", "page": 1}}, "list_pets")
+        r, body = await rpc("tools/call", {"name": "list_pets", "arguments": {"species": "犬", "page": 1}}, "list_pets")
         result = (body or {}).get("result", {})
         check(result.get("isError") is not True, "isError 不是 true", str(result.get("isError")))
         sc = result.get("structuredContent") or {}
@@ -358,7 +359,8 @@ async def main() -> int:
         )
         check("pageSize" in sc, "用驼峰 pageSize", str(list(sc)))
         check(
-            any("species=dog" in q for q in FakeBackend.seen_queries),
+            # 中文枚举在查询串里是百分号编码（犬 → %E7%8A%AC），不能直接匹配「犬」。
+            any(f"species={quote('犬')}" in q for q in FakeBackend.seen_queries),
             "查询参数确实传到了后端",
             str(FakeBackend.seen_queries[-1] if FakeBackend.seen_queries else ""),
         )

@@ -235,7 +235,7 @@ class TestStatelessProtocol:
             assert client.protocol_version == "2026-07-28"
             tools = await client.list_tools()
             assert [t.name for t in tools.tools] == ["list_pets"]
-            result = await client.call_tool("list_pets", {"species": "dog", "page": 1})
+            result = await client.call_tool("list_pets", {"species": "犬", "page": 1})
 
         assert result.is_error is False
         assert result.structured_content is not None
@@ -272,7 +272,7 @@ class TestToolsOverHttp:
             response = await rpc(
                 http,
                 "tools/call",
-                {"name": "list_pets", "arguments": {"species": "dog"}, "_meta": META},
+                {"name": "list_pets", "arguments": {"species": "犬"}, "_meta": META},
                 name="list_pets",
             )
         assert response.status_code == 200
@@ -302,7 +302,7 @@ class TestToolsOverHttp:
                 "tools/call",
                 {
                     "name": "list_pets",
-                    "arguments": {"species": "dog", "page_size": 10},
+                    "arguments": {"species": "犬", "page_size": 10},
                     "_meta": META,
                 },
                 name="list_pets",

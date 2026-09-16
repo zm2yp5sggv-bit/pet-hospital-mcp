@@ -69,55 +69,75 @@ LIST_PETS_QUERY_PARAMS: Final[tuple[str, ...]] = (
 MAX_PAGE_SIZE: Final = 500
 
 # ---------------------------------------------------------------------------
-# ⚠️ 未核实：以下四组枚举值必须与 Go 后端的真实取值对齐。
+# 枚举值：已核实（2026-09-16），证据链两条且互相印证：
 #
-# 本仓库不包含 Go 服务源码，无法从证据推出这些取值，因此这里给出的是**暂定值**。
-# 上线前请按下列任一步骤替换本段（唯一改动点）：
+# 1. Go 服务源码 pet-hospital-mcp-teaching-main：
+#    - internal/model/model.go  SpeciesDog..SpeciesOther / StatusWaiting..StatusChronic
+#    - internal/api/api.go      handleMeta 的 sortFields 清单
+#    - internal/store/store.go  sortPets：order 为空默认 desc、非 "desc"（忽略
+#      大小写）一律按 asc；sortBy 为空或未知时按 id 排序；pageSize>500 钳到 500
+# 2. 运行实例（pethospital.exe）：GET /api/v1/meta 返回的四组取值与源码一致，
+#    且 species=犬 / status=住院中 / sortBy=ownerName&order=asc 实测生效。
 #
-#   grep -rn -A20 'api/v1/pets' <go-repo>            # 找到 handler
-#   grep -rn 'case "' <go-repo>/internal/...          # 找枚举常量/switch 分支
-#
-# 取值不对时，工具会以 VALIDATION_ERROR 明确报出「允许值列表」，可据此快速纠正。
-# 详见 README「已知未核实项」与 UPGRADE_PROMPT.md。
+# 注意：工具侧的 ``order`` 比 Go 收紧——后端大小写不敏感，这里只放行小写
+# ``asc``/``desc``（白名单校验，属客户端自律，不改变后端行为）。
+# 后端枚举若变更，同步本段四个常量与下方四个 ``Literal`` 别名（两处必须一致，
+# tests/test_tool_registration.py 有测试锁定，只改一处会红）。
 # ---------------------------------------------------------------------------
 
-#: ⚠️ 暂定值，待与 Go 后端对齐。
+#: 与 Go 后端 ``GET /api/v1/meta`` 的 ``species`` 一致。
 SPECIES_VALUES: Final[tuple[str, ...]] = (
-    "dog",
-    "cat",
-    "rabbit",
-    "bird",
-    "hamster",
-    "reptile",
-    "other",
+    "犬",
+    "猫",
+    "兔",
+    "鸟",
+    "仓鼠",
+    "爬宠",
+    "其他",
 )
 
-#: ⚠️ 暂定值，待与 Go 后端对齐。
+#: 与 Go 后端 ``GET /api/v1/meta`` 的 ``status`` 一致。
 STATUS_VALUES: Final[tuple[str, ...]] = (
-    "waiting",
-    "in_treatment",
-    "completed",
-    "discharged",
-    "cancelled",
+    "待就诊",
+    "就诊中",
+    "住院中",
+    "已康复",
+    "慢性病随访",
 )
 
-#: ⚠️ 暂定值，待与 Go 后端对齐。
+#: 与 Go 后端 ``GET /api/v1/meta`` 的 ``sortFields`` 一致。
 SORT_BY_VALUES: Final[tuple[str, ...]] = (
     "id",
     "name",
+    "ownerName",
     "species",
+    "doctor",
+    "disease",
     "status",
+    "totalCost",
+    "visitCount",
     "createdAt",
     "updatedAt",
-    "totalCost",
 )
 
-#: ⚠️ 暂定值，待与 Go 后端对齐。
+#: ``asc`` / ``desc``（工具侧收紧为小写；后端本身大小写不敏感）。
 ORDER_VALUES: Final[tuple[str, ...]] = ("asc", "desc")
 
-SpeciesValue = Literal["dog", "cat", "rabbit", "bird", "hamster", "reptile", "other"]
-StatusValue = Literal["waiting", "in_treatment", "completed", "discharged", "cancelled"]
-SortByValue = Literal["id", "name", "species", "status", "createdAt", "updatedAt", "totalCost"]
+SpeciesValue = Literal["犬", "猫", "兔", "鸟", "仓鼠", "爬宠", "其他"]
+StatusValue = Literal["待就诊", "就诊中", "住院中", "已康复", "慢性病随访"]
+SortByValue = Literal[
+    "id",
+    "name",
+    "ownerName",
+    "species",
+    "doctor",
+    "disease",
+    "status",
+    "totalCost",
+    "visitCount",
+    "createdAt",
+    "updatedAt",
+]
 OrderValue = Literal["asc", "desc"]
 
 
@@ -129,7 +149,7 @@ LIST_PETS_DESCRIPTION: Final = f"""\
 
 **适用场景**：
 - 用户问「有哪些宠物」「某位主人的宠物」「某医生在看哪些病例」；
-- 需要按状态（如待就诊/治疗中）或费用区间筛选；
+- 需要按状态（如待就诊/住院中/已康复）或费用区间筛选；
 - 需要一页一页翻看大量病例数据。
 
 **参数**（全部可选，全部为「同时满足」的与条件）：
@@ -145,7 +165,7 @@ LIST_PETS_DESCRIPTION: Final = f"""\
 - `sortBy`：排序字段，取值 {'/'.join(SORT_BY_VALUES)}；
 - `order`：排序方向，取值 {'/'.join(ORDER_VALUES)}；
 - `page`：页码，从 1 开始，默认 1；
-- `pageSize`：每页条数，1..{MAX_PAGE_SIZE}，默认由后端决定。
+- `pageSize`：每页条数，1..{MAX_PAGE_SIZE}，默认 20（由后端决定，超过 500 会被后端钳回 500）。
 
 **返回值**：与后端 `data` 一一对应的一页数据 —— `items`（宠物列表，其中
 `records`/`charges` 可能是 `null` 也可能是数组）、`total`、`page`、`pageSize`、

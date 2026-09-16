@@ -261,7 +261,7 @@ timestamp / level / logger / tool_name / params / status / duration_ms
 **`inputSchema` 里 Optional 字段的约束在 `anyOf` 里一层**：
 
 ```json
-"species": { "anyOf": [ { "enum": ["dog", "..."], "type": "string" }, { "type": "null" } ], ... }
+"species": { "anyOf": [ { "enum": ["犬", "..."], "type": "string" }, { "type": "null" } ], ... }
 ```
 
 顶层直接找 `.enum` / `.maximum` 是**找不到**的。写测试或客户端解析时记得钻进去

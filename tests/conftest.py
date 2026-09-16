@@ -65,12 +65,12 @@ def backend_item(**overrides: Any) -> dict[str, Any]:
     item: dict[str, Any] = {
         "id": 1,
         "name": "旺财",
-        "species": "dog",
+        "species": "犬",
         "ownerName": "张三",
         "ownerPhone": "13800000000",
         "ownerAddr": "上海市某路 1 号",
         "chipNo": "CHIP-0001",
-        "status": "waiting",
+        "status": "待就诊",
         "records": None,
         "charges": [],
     }
