@@ -397,7 +397,7 @@ npx @modelcontextprotocol/inspector
 
 然后：`Tools` → `list_pets` → 填参数 → `Run`。
 
-### 5.3 用 Python SDK 直接调
+### 5.4 用 Python SDK 直接调
 
 ```python
 import asyncio
@@ -417,7 +417,7 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-### 5.4 裸 curl（看协议层）
+### 5.5 裸 curl（看协议层）
 
 > ⚠️ **必须带 `params._meta`，且键名要带 `io.modelcontextprotocol/` 前缀**，
 > 否则 400 —— 原因见 §1.1。这段是实测跑通的，别省。
